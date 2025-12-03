@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+requests
+pandas
+pandas-ta
+python-dotenv
+numpy
+scipy
+beautifulsoup4
+textblob
