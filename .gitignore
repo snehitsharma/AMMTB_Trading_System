@@ -12,3 +12,6 @@ dist/
 # Project Specific
 local.keys
 .DS_Store
+*.db
+*.log
+*.sqlite

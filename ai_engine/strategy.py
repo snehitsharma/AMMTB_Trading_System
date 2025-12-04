@@ -5,8 +5,9 @@ import numpy as np
 from risk_engine import RiskEngine
 from sentiment_engine import SentimentEngine
 
-class StrategyEngine:
+class TechnicalStrategy:
     def __init__(self):
+        self.name = "Technical Trend"
         self.risk_engine = RiskEngine()
         self.sentiment_engine = SentimentEngine()
 
@@ -35,7 +36,7 @@ class StrategyEngine:
 
         return df
 
-    def analyze_symbol(self, symbol: str, history: list, current_position: bool, equity: float, settings=None):
+    def analyze(self, symbol: str, history: list, current_position: bool, equity: float, settings=None):
         """
         Analyze a single symbol using Technical Analysis + Risk + Sentiment
         """
@@ -138,7 +139,8 @@ class StrategyEngine:
                     "quantity": int(quantity),
                     "reason": reason,
                     "stop_loss": stop_loss,
-                    "take_profit": take_profit
+                    "take_profit": take_profit,
+                    "indicators": {"rsi": rsi, "macd": macd, "atr": atr} # Return indicators for frontend
                 }
 
         # SELL LOGIC
@@ -154,5 +156,6 @@ class StrategyEngine:
             "asset": symbol,
             "price": price,
             "action": action,
-            "reason": reason
+            "reason": reason,
+            "indicators": {"rsi": rsi, "macd": macd, "atr": atr}
         }

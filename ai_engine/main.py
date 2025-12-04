@@ -40,12 +40,115 @@ TRADING_ENABLED = True
 UNIVERSE = []
 LAST_UNIVERSE_UPDATE = None
 
-from strategy import StrategyEngine
+from strategy import TechnicalStrategy
+from strategy_manager import StrategyManager
+from strategies.insider_strategy import InsiderMomentumStrategy
 from parallel_scanner import ParallelScanner
+from data_ingestion import InsiderDataIngestor
+from settings import system_settings, Settings
 
-# Initialize Strategy & Scanner
-strategy_engine = StrategyEngine()
-scanner = ParallelScanner(strategy_engine, system_settings, US_AGENT, CRYPTO_AGENT)
+# Initialize Data Ingestor (Insider Trading)
+insider_ingestor = InsiderDataIngestor()
+insider_ingestor.start_scheduler(interval_minutes=60)
+
+# Initialize Strategies
+tech_strategy = TechnicalStrategy()
+insider_strategy = InsiderMomentumStrategy(insider_ingestor)
+
+# Initialize Manager & Register Strategies
+strategy_manager = StrategyManager()
+strategy_manager.register_strategy(tech_strategy)
+strategy_manager.register_strategy(insider_strategy)
+
+# Initialize Scanner with Manager
+scanner = ParallelScanner(strategy_manager, system_settings, US_AGENT, CRYPTO_AGENT)
+
+# Initialize Risk & Execution
+from portfolio_manager import PortfolioManager
+from execution_engine import ExecutionEngine
+from event_engine import EventEngine
+import asyncio
+
+port_manager = PortfolioManager()
+exec_engine = ExecutionEngine(port_manager, US_AGENT, CRYPTO_AGENT, ORCHESTRATOR)
+
+# Initialize Event Engine
+event_engine = EventEngine(strategy_manager, exec_engine, insider_ingestor, US_AGENT, CRYPTO_AGENT, ORCHESTRATOR)
+
+# Initialize Backtester
+from backtester import Backtester
+backtester = Backtester(strategy_manager, US_AGENT, CRYPTO_AGENT)
+
+@app.post("/api/v1/backtest")
+def run_backtest(payload: dict):
+    """
+    Run a simulation.
+    Payload: {"symbol": "AAPL", "strategy": "TECHNICAL", "days": 90}
+    """
+    symbol = payload.get("symbol", "AAPL")
+    strategy = payload.get("strategy", "TECHNICAL")
+    days = int(payload.get("days", 90))
+    
+    return backtester.run_backtest(symbol, strategy, days)
+
+@app.get("/api/v1/risk")
+def get_risk_status():
+    """Return current risk metrics"""
+    owned_assets, equity = get_portfolio_positions()
+    # Estimate cash (simplified)
+    # In reality we should fetch cash from agents, but for now we derive it
+    # This is a placeholder estimation if we don't have exact cash
+    # Let's try to fetch real cash from US agent if possible, or just use equity - holdings
+    
+    # For now, let's just ask PortfolioManager to calculate based on what we know
+    # We need to pass current equity. 
+    # We assume cash is equity * (1 - exposure) roughly, or we just pass equity and let PM handle it if it tracks cash.
+    # The PM.get_risk_metrics needs equity and cash.
+    
+    # Let's fetch cash from US Agent for better accuracy
+    cash = 100000.0 # Fallback
+    try:
+        us_res = requests.get(f"{US_AGENT}/api/v1/account/summary", timeout=1)
+        if us_res.status_code == 200:
+            cash = float(us_res.json().get("cash", 100000.0))
+    except:
+        pass
+        
+    return port_manager.get_risk_metrics(equity, cash)
+
+@app.post("/api/v1/trade")
+def execute_manual_trade(trade: dict):
+    """
+    Manual Trade Trigger via Smart Execution Engine.
+    Payload: { "symbol": "AAPL", "action": "BUY", "price": 150.0 }
+    """
+    try:
+        owned_assets, equity = get_portfolio_positions()
+        # Calculate current holdings value roughly
+        current_holdings_value = sum([p['market_value'] for p in owned_assets])
+        
+        signal = {
+            "asset": trade["symbol"],
+            "action": trade["action"],
+            "price": float(trade["price"]),
+            "reason": "Manual/API Trigger"
+        }
+        
+        return exec_engine.execute_signal(signal, equity, current_holdings_value)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"status": "ERROR", "reason": str(e)}
+
+@app.get("/api/v1/trades")
+def get_trade_history():
+    """Return historical executed trades"""
+    return exec_engine.get_trade_history()
+
+@app.on_event("startup")
+async def start_background_tasks():
+    # Start Event Loop
+    asyncio.create_task(event_engine.run_loop())
 
 # State
 last_decisions = []
@@ -69,7 +172,7 @@ def update_universe():
 
 def get_portfolio_positions():
     """Fetch current holdings from US & Crypto agents"""
-    positions = set()
+    positions = []
     total_equity = 100000.0 # Default fallback
     
     try:
@@ -82,14 +185,12 @@ def get_portfolio_positions():
         
         us_pos = requests.get(f"{US_AGENT}/api/v1/positions", timeout=2)
         if us_pos.status_code == 200:
-            for p in us_pos.json():
-                positions.add(p.get("symbol"))
+            positions.extend(us_pos.json())
             
         # Check Crypto Agent
         crypto_pos = requests.get(f"{CRYPTO_AGENT}/api/v1/positions", timeout=2)
         if crypto_pos.status_code == 200:
-             for p in crypto_pos.json():
-                positions.add(p.get("symbol"))
+             positions.extend(crypto_pos.json())
                 
     except Exception as e:
         print(f"Portfolio Fetch Error: {e}")
@@ -123,9 +224,7 @@ def execute_trade(market, symbol, side, qty, reason):
     except Exception as e:
         print(f"Trade Failed: {e}")
 
-from settings import system_settings, Settings
 
-@app.get("/api/v1/settings")
 def get_settings():
     return system_settings
 
@@ -241,8 +340,11 @@ def get_signals():
     # 1. Get State
     owned_assets, equity = get_portfolio_positions()
     
+    # Convert to set of symbols for scanner
+    owned_symbols = {p['symbol'] for p in owned_assets}
+    
     # 2. Parallel Scan
-    decisions = scanner.scan_universe(UNIVERSE, owned_assets, equity)
+    decisions = scanner.scan_universe(UNIVERSE, owned_symbols, equity)
     
     # 3. Execute Trades
     for d in decisions:
@@ -272,3 +374,18 @@ def get_signals():
 def get_live_analysis():
     """Returns the full analysis feed for the frontend"""
     return last_decisions
+
+@app.get("/api/v1/insider_activity")
+def get_insider_activity(symbol: str = "AAPL"):
+    """Returns recent insider activity for a symbol"""
+    return insider_ingestor.get_recent_activity(symbol)
+
+@app.get("/api/v1/strategies")
+def get_strategies():
+    return strategy_manager.get_status()
+
+@app.post("/api/v1/strategies/toggle")
+def toggle_strategy(payload: dict):
+    # Payload example: {"name": "TECHNICAL", "enabled": false}
+    success = strategy_manager.set_active(payload["name"], payload["enabled"])
+    return strategy_manager.get_status()

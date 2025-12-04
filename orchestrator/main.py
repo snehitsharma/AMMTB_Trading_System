@@ -54,6 +54,26 @@ def withdraw_funds(request: WithdrawRequest):
     
     return {"status": "PENDING_APPROVAL", "transaction_id": transaction_id}
 
+class TransactionUpdate(BaseModel):
+    action: str # "APPROVE" or "REJECT"
+
+@app.patch("/api/v1/transactions/{transaction_id}")
+def update_transaction(transaction_id: str, update: TransactionUpdate):
+    if update.action == "APPROVE":
+        ledger.update_transaction_status(transaction_id, "APPROVED")
+        ledger.add_log("ADMIN", "FUNDS_RELEASED", {"id": transaction_id, "status": "APPROVED"})
+        return {"status": "APPROVED"}
+    elif update.action == "REJECT":
+        ledger.update_transaction_status(transaction_id, "REJECTED")
+        ledger.add_log("ADMIN", "WITHDRAWAL_DENIED", {"id": transaction_id, "status": "REJECTED"})
+        return {"status": "REJECTED"}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid Action")
+
+@app.get("/api/v1/wallet/balance")
+def get_wallet_balance():
+    return {"balance": ledger.get_balance()}
+
 @app.get("/api/v1/logs")
 def get_logs():
     return {

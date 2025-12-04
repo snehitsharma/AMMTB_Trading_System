@@ -1,5 +1,5 @@
 import { Box, VStack, Icon, Text, Flex, Link } from "@chakra-ui/react";
-import { FiHome, FiActivity, FiSettings, FiPieChart } from "react-icons/fi";
+import { FiHome, FiActivity, FiSettings, FiPieChart, FiCpu, FiClock, FiShield } from "react-icons/fi";
 import { FaWallet, FaChartLine, FaHome } from "react-icons/fa";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 
@@ -38,6 +38,10 @@ export default function Sidebar() {
                 <NavItem icon={FaHome} label="Dashboard" to="/" />
                 <NavItem icon={FaChartLine} label="Live Analysis" to="/live-analysis" />
                 <NavItem icon={FaWallet} label="Portfolio" to="/portfolio" />
+                <NavItem icon={FiDollarSign} label="Wallet" to="/wallet" />
+                <NavItem icon={FiCpu} label="Strategies" to="/strategies" />
+                <NavItem icon={FiClock} label="Backtest" to="/backtest" />
+                <NavItem icon={FiShield} label="Risk Desk" to="/risk" />
                 <NavItem icon={FiActivity} label="Activity Logs" to="/activity" />
                 <NavItem icon={FiSettings} label="Settings" to="/settings" />
             </VStack>

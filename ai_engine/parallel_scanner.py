@@ -29,9 +29,9 @@ class ParallelScanner:
             if not history:
                  return {"asset": symbol, "price": 0, "action": "WAIT", "reason": "No Data"}
 
-            # 2. Run Strategy
+            # 2. Run Strategy (via Manager)
             is_owned = symbol in owned_assets
-            decision = self.strategy_engine.analyze_symbol(symbol, history, is_owned, equity, self.settings)
+            decision = self.strategy_engine.run_all_strategies(symbol, history, is_owned, equity, self.settings)
             
             # Enrich with indicators for frontend
             decision["indicators"] = {

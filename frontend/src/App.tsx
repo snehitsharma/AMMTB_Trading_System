@@ -7,6 +7,11 @@ import LiveAnalysisPage from "./pages/LiveAnalysisPage";
 import PortfolioPage from './pages/PortfolioPage'
 import SettingsPage from './pages/SettingsPage'
 
+import StrategyPage from "./pages/StrategyPage";
+import BacktestPage from "./pages/BacktestPage";
+import RiskPage from "./pages/RiskPage";
+import WalletPage from "./pages/WalletPage";
+
 export default function App() {
   return (
     <Router>
@@ -20,6 +25,10 @@ export default function App() {
             <Route path="/" element={<DashboardHome />} />
             <Route path="/live-analysis" element={<LiveAnalysisPage />} />
             <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/strategies" element={<StrategyPage />} />
+            <Route path="/backtest" element={<BacktestPage />} />
+            <Route path="/risk" element={<RiskPage />} />
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

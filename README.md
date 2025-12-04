@@ -1,69 +1,91 @@
-# AMMTB Trading System
+# AMMTB Trading System - Owner's Manual 🚀
 
-Autonomous Multi-Market Trading System with 6 agents.
+## 1. Architecture Overview
+The AMMTB System is a modular, agent-driven trading platform built on a microservices architecture.
 
-## Architecture
+### The 6 Core Agents
+| Agent | Port | Role |
+|-------|------|------|
+| **US Agent** | `8001` | Interfaces with Alpaca (Stocks). Handles market data & execution. |
+| **Crypto Agent** | `8002` | Interfaces with Alpaca (Crypto). Handles BTC/ETH data & execution. |
+| **India Agent** | `8003` | Interfaces with Upstox (NSE/BSE). *Currently Optional.* |
+| **AI Brain** | `8004` | The Intelligence Layer. Runs strategies, manages portfolio, and executes trades. |
+| **Orchestrator** | `8005` | The Central Bank & Logger. Manages the Ledger, Wallet, and System Logs. |
+| **Frontend** | `3000` | React-based Dashboard for monitoring and control. |
 
-- **US Agent** (`us_backend`): PyAlgoTrade + FastAPI (Port 8001)
-- **India Agent** (`india_backend`): Zerodha + FastAPI (Port 8002)
-- **Crypto Agent** (`crypto_backend`): CCXT + FastAPI (Port 8003)
-- **AI Agent** (`ai_engine`): PyTorch + FastAPI (Port 8004)
-- **Orchestrator** (`orchestrator`): Gatekeeper (Not yet implemented)
-- **Frontend** (`frontend`): React + Chakra UI (Port 5173)
+---
 
-## Getting Started
+## 2. Quick Start
+To launch the entire system (all agents + frontend):
 
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
+1. Open PowerShell in the root directory.
+2. Run the startup script:
+   ```powershell
+   .\start_system.ps1
+   ```
+3. The dashboard will automatically open at `http://localhost:3000`.
 
-### Installation
+---
 
-1.  **Install Python Dependencies**:
-    ```bash
-    pip install fastapi uvicorn pydantic
-    # Add other requirements as needed
-    ```
+## 3. Features Guide
 
-2.  **Install Frontend Dependencies**:
-    ```bash
-    cd frontend
-    npm install
-    ```
+### 🧠 AI Brain & Strategies
+- **Location**: `/strategies` page.
+- **Control**: Toggle strategies (e.g., "Technical Analysis", "Insider Momentum") on/off in real-time.
+- **Logic**: The Brain scans the universe every 5 minutes and executes trades based on active strategies.
 
-### Running the System
+### 🛡️ Risk Management
+- **Location**: `/risk` page.
+- **Rules**:
+    - **Position Sizing**: Fixed at **5%** of equity per trade.
+    - **Max Exposure**: Hard limit of **25%** total invested capital (75% cash buffer).
+    - **Kill Switch**: Automatically triggers if **Daily Drawdown > 3%**. Halts all buying.
+    - **Bracket Orders**: Every trade has a **-5% Stop Loss** and **+10% Take Profit**.
 
-1.  **Start US Agent**:
-    ```bash
-    python us_backend/main.py
-    ```
+### 🏦 Banking & Wallet
+- **Location**: `/wallet` page.
+- **Liquidity**: View your "Available Liquidity" (Free Cash).
+- **Withdrawals**: 
+    1. Request a withdrawal via API (or future UI).
+    2. Go to the **Wallet Page**.
+    3. Click **Approve** (Green Check) to release funds or **Reject** (Red X) to deny.
+    4. The Master Ledger updates immediately.
 
-2.  **Start India Agent**:
-    ```bash
-    python india_backend/main.py
-    ```
+---
 
-3.  **Start Crypto Agent**:
-    ```bash
-    python crypto_backend/main.py
-    ```
+## 4. Configuration
+The system is configured via the `.env` file in the root directory.
 
-4.  **Start AI Agent**:
-    ```bash
-    python ai_engine/main.py
-    ```
+### Key Settings
+```ini
+# API Keys
+ALPACA_API_KEY=your_key_here
+ALPACA_SECRET_KEY=your_secret_here
 
-5.  **Start Frontend**:
-    ```bash
-    cd frontend
-    npm run dev
-    ```
+# System Flags
+ENABLE_INDIA_AGENT=false  # Set to true to enable Upstox
+TRADING_ENABLED=true      # Set to false for "Paper Trading" mode (Simulated execution)
+```
 
-## API Endpoints
+---
 
-All backends expose:
-- `GET /api/v1/health`
-- `GET /api/v1/account/summary`
-- `GET /api/v1/positions`
-- `POST /api/v1/trade`
-- `POST /api/v1/dry_trade`
+## 5. Troubleshooting
+
+### Common Issues
+- **`ECONNREFUSED` / Connection Error**:
+    - One of the agents is not running.
+    - Check the terminal windows. If one closed, restart it manually or run `.\start_system.ps1` again.
+- **"Kill Switch Active"**:
+    - You hit the 3% daily loss limit.
+    - To reset manually (Admin only), restart the AI Engine.
+- **Empty Charts**:
+    - The market might be closed, or Alpaca data is delayed. Check your API keys.
+
+---
+
+## 6. Maintenance
+To wipe the system (Database, Logs, Cache) and start fresh:
+```powershell
+.\reset_system.ps1
+```
+**WARNING**: This deletes all trade history and ledger records!

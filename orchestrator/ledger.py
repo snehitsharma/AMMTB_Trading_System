@@ -92,6 +92,29 @@ class SQLiteLedger:
             ))
         return logs
 
+    def update_transaction_status(self, transaction_id: str, status: str):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('UPDATE transactions SET status = ? WHERE id = ?', (status, transaction_id))
+        conn.commit()
+        conn.close()
+
+    def get_balance(self) -> float:
+        """Calculate Available Liquidity (Deposits - Approved Withdrawals)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Sum Deposits
+        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='DEPOSIT' AND status='COMPLETED'")
+        deposits = cursor.fetchone()[0] or 0.0
+        
+        # Sum Approved Withdrawals
+        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='WITHDRAWAL' AND status='APPROVED'")
+        withdrawals = cursor.fetchone()[0] or 0.0
+        
+        conn.close()
+        return deposits - withdrawals
+
     def get_transactions(self) -> List[Transaction]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

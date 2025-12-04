@@ -80,26 +80,37 @@ def get_history(symbol: str, limit: int = 100):
         
 @app.post("/api/v1/trade")
 def place_trade(trade: dict):
-    from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
+    from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, TakeProfitRequest, StopLossRequest
     from alpaca.trading.enums import OrderSide, TimeInForce, OrderType
     try:
         side = OrderSide.BUY if trade["side"] == "buy" else OrderSide.SELL
         qty = float(trade["qty"])
         
+        # Bracket Params
+        tp = trade.get("take_profit")
+        sl = trade.get("stop_loss")
+        
+        tp_req = TakeProfitRequest(limit_price=float(tp)) if tp else None
+        sl_req = StopLossRequest(stop_price=float(sl)) if sl else None
+
         if trade.get("type") == "limit":
             req = LimitOrderRequest(
                 symbol=trade["symbol"],
                 qty=qty,
                 side=side,
                 time_in_force=TimeInForce.DAY,
-                limit_price=float(trade["limit_price"])
+                limit_price=float(trade["limit_price"]),
+                take_profit=tp_req,
+                stop_loss=sl_req
             )
         else:
             req = MarketOrderRequest(
                 symbol=trade["symbol"],
                 qty=qty,
                 side=side,
-                time_in_force=TimeInForce.DAY
+                time_in_force=TimeInForce.DAY,
+                take_profit=tp_req,
+                stop_loss=sl_req
             )
             
         res = trading_client.submit_order(req)
