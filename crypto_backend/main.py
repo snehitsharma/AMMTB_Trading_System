@@ -4,116 +4,87 @@ from alpaca.trading.client import TradingClient
 from alpaca.data.historical import CryptoHistoricalDataClient
 from alpaca.data.requests import CryptoLatestQuoteRequest, CryptoBarsRequest
 from alpaca.data.timeframe import TimeFrame
+from alpaca.trading.requests import MarketOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
 import os
 from dotenv import load_dotenv
 import datetime
 
 load_dotenv()
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
-)
+# CLIENTS
+trading_client = None
+data_client = None
+STATUS = "BOOTING"
 
-API_KEY = os.getenv("ALPACA_API_KEY")
-SECRET = os.getenv("ALPACA_SECRET_KEY")
+try:
+    API_KEY = os.getenv("ALPACA_API_KEY")
+    SECRET = os.getenv("ALPACA_SECRET_KEY")
+    if API_KEY and SECRET:
+        trading_client = TradingClient(API_KEY, SECRET, paper=True)
+        data_client = CryptoHistoricalDataClient()
+        STATUS = "ONLINE"
+        print("✅ Crypto Agent: Alpaca Connected")
+except Exception as e:
+    print(f"❌ Crypto Agent Init Fail: {e}")
+    STATUS = "ERROR"
 
-trading_client = TradingClient(API_KEY, SECRET, paper=True)
-data_client = CryptoHistoricalDataClient(API_KEY, SECRET)
+# --- STANDARD ENDPOINTS ---
+
+@app.get("/")
+def root(): return {"status": "Crypto Agent Online", "mode": STATUS}
 
 @app.get("/account/summary")
-@app.get("/api/v1/account/summary")
 def get_account():
+    if not trading_client: return {"equity": 0, "status": STATUS}
     try:
         acct = trading_client.get_account()
-        return {"equity": float(acct.equity), "cash": float(acct.cash), "total_equity": float(acct.equity)}
-    except:
-        return {"equity": 0, "cash": 0, "total_equity": 0}
+        return {"equity": float(acct.equity), "cash": float(acct.cash), "status": "ACTIVE"}
+    except: return {"equity": 0, "status": "ERROR"}
 
 @app.get("/positions")
-@app.get("/api/v1/positions")
 def get_positions():
+    if not trading_client: return []
     try:
-        positions = trading_client.get_all_positions()
-        # Filter for crypto
-        return [{
-            "symbol": p.symbol, 
-            "qty": float(p.qty), 
-            "market_value": float(p.market_value),
-            "avg_entry_price": float(p.avg_entry_price),
-            "current_price": float(p.current_price),
-            "unrealized_pl": float(p.unrealized_pl),
-            "unrealized_plpc": float(p.unrealized_plpc)
-        } for p in positions if p.asset_class == 'crypto']
-    except:
-        return []
+        return [p.dict() for p in trading_client.get_all_positions() if p.asset_class == 'crypto']
+    except: return []
 
 @app.get("/quote")
-@app.get("/api/v1/quote")
 def get_quote(symbol: str = "BTC/USD"):
+    if not data_client: return {"price": 0}
     try:
         req = CryptoLatestQuoteRequest(symbol_or_symbols=symbol)
         res = data_client.get_crypto_latest_quote(req)
         return {"symbol": symbol, "price": res[symbol].ask_price}
-    except:
-        return {"symbol": symbol, "price": 0.0}
+    except: return {"price": 0}
 
-# --- CRITICAL FIX: HISTORY ENDPOINT ---
-@app.get("/api/v1/history")
+@app.get("/history")
 def get_history(symbol: str, limit: int = 100):
+    if not data_client: return []
     try:
-        # Alpaca requires start time for bars
-        start_time = datetime.datetime.now() - datetime.timedelta(days=limit*2) 
-        req = CryptoBarsRequest(
-            symbol_or_symbols=symbol,
-            timeframe=TimeFrame.Day,
-            start=start_time,
-            limit=limit
-        )
+        start_dt = datetime.datetime.now() - datetime.timedelta(days=limit*2)
+        req = CryptoBarsRequest(symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start_dt, limit=limit)
         bars = data_client.get_crypto_bars(req)
-        return [
-            {"close": b.close, "open": b.open, "high": b.high, "low": b.low, "volume": b.volume, "timestamp": b.timestamp.isoformat()} 
-            for b in bars[symbol]
-        ]
-    except Exception as e:
-        print(f"History Error {symbol}: {e}")
-        return [] # Return empty list on error to prevent crash
-        
-@app.post("/api/v1/trade")
+        return [{"close": b.close, "timestamp": b.timestamp.isoformat()} for b in bars[symbol]]
+    except: return []
+
+@app.get("/signals")
+def get_signals():
+    # Placeholder
+    return [{"asset": "BTC/USD", "price": 0, "action": "HOLD", "reason": "System Sync", "source": "CRYPTO_AGENT"}]
+
+@app.post("/trade")
 def place_trade(trade: dict):
-    from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest, TakeProfitRequest, StopLossRequest
-    from alpaca.trading.enums import OrderSide, TimeInForce
+    if not trading_client: return {"status": "error"}
     try:
-        side = OrderSide.BUY if trade["side"] == "buy" else OrderSide.SELL
-        qty = float(trade["qty"])
-        
-        # Bracket Params
-        tp = trade.get("take_profit")
-        sl = trade.get("stop_loss")
-        
-        tp_req = TakeProfitRequest(limit_price=float(tp)) if tp else None
-        sl_req = StopLossRequest(stop_price=float(sl)) if sl else None
-        
-        if trade.get("type") == "limit":
-            req = LimitOrderRequest(
-                symbol=trade["symbol"],
-                qty=qty,
-                side=side,
-                time_in_force=TimeInForce.GTC,
-                limit_price=float(trade["limit_price"]),
-                take_profit=tp_req,
-                stop_loss=sl_req
-            )
-        else:
-            req = MarketOrderRequest(
-                symbol=trade["symbol"],
-                qty=qty,
-                side=side,
-                time_in_force=TimeInForce.GTC, # Crypto usually GTC
-                take_profit=tp_req,
-                stop_loss=sl_req
-            )
-            
+        req = MarketOrderRequest(
+            symbol=trade.get("symbol"),
+            qty=trade.get("qty"),
+            side=OrderSide.BUY if trade.get("side") == "buy" else OrderSide.SELL,
+            time_in_force=TimeInForce.GTC
+        )
         res = trading_client.submit_order(req)
         return {"status": "filled", "id": str(res.id)}
     except Exception as e:

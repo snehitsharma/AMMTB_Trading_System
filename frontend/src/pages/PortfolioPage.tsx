@@ -1,140 +1,125 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
-import {
-    Box, Heading, SimpleGrid, Text, Badge, Table, Stat
-} from '@chakra-ui/react'
-import TradeModal from '../components/TradeModal'
-
-interface Position {
-    symbol: string
-    qty: number
-    market_value: number
-    avg_entry_price: number
-    current_price: number
-    unrealized_pl: number
-    unrealized_plpc: number
-    type: 'US' | 'CRYPTO'
-}
+import { Box, Heading, SimpleGrid, Table, Thead, Tbody, Tr, Th, Td, Badge, Text, HStack, Progress, useToast } from "@chakra-ui/react";
+import { useEffect, useState, useMemo } from "react";
+import axios from "axios";
 
 export default function PortfolioPage() {
-    const [positions, setPositions] = useState<Position[]>([])
-    const [loading, setLoading] = useState(true)
-    const [totalEquity, setTotalEquity] = useState(0)
-    const [totalPL, setTotalPL] = useState(0)
-
-    const fetchData = async () => {
-        try {
-            const [usRes, cryptoRes] = await Promise.all([
-                axios.get('/api/us/positions'),
-                axios.get('/api/crypto/positions')
-            ])
-
-            const usPos = usRes.data.map((p: any) => ({ ...p, type: 'US' }))
-            const cryptoPos = cryptoRes.data.map((p: any) => ({ ...p, type: 'CRYPTO' }))
-
-            const allPos = [...usPos, ...cryptoPos]
-            setPositions(allPos)
-
-            // Calculate Totals
-            const equity = allPos.reduce((sum, p) => sum + p.market_value, 0)
-            const pl = allPos.reduce((sum, p) => sum + p.unrealized_pl, 0)
-
-            setTotalEquity(equity)
-            setTotalPL(pl)
-            setLoading(false)
-        } catch (e) {
-            console.error("Error fetching portfolio:", e)
-            setLoading(false)
-        }
-    }
+    // [Keep existing State & useEffect logic...]
+    const [usData, setUsData] = useState<any>(null);
+    const [cryptoData, setCryptoData] = useState<any>(null);
+    const [positions, setPositions] = useState<any[]>([]);
+    const toast = useToast();
 
     useEffect(() => {
-        fetchData()
-        const interval = setInterval(fetchData, 5000)
-        return () => clearInterval(interval)
-    }, [])
+        const fetchData = async () => {
+            try {
+                const us = await axios.get("/api/us/account/summary").catch(() => ({ data: {} }));
+                const crypto = await axios.get("/api/crypto/account/summary").catch(() => ({ data: {} }));
+                setUsData(us.data);
+                setCryptoData(crypto.data);
+
+                const usPos = await axios.get("/api/us/positions").catch(() => ({ data: [] }));
+                const cryptoPos = await axios.get("/api/crypto/positions").catch(() => ({ data: { positions: [] } }));
+
+                // Handle List vs Object { positions: [] }
+                const usList = Array.isArray(usPos.data) ? usPos.data : (usPos.data.positions || []);
+                const cryList = Array.isArray(cryptoPos.data) ? cryptoPos.data : (cryptoPos.data.positions || []);
+
+                setPositions([...usList, ...cryList]);
+            } catch (e) {
+                console.error(e);
+                toast({
+                    title: "Data Sync Error",
+                    description: "Failed to fetch portfolio data.",
+                    status: "warning",
+                    duration: 5000,
+                    isClosable: true,
+                });
+            }
+        };
+        fetchData();
+        const interval = setInterval(fetchData, 5000);
+        return () => clearInterval(interval);
+    }, [toast]);
+
+    const stats = useMemo(() => {
+        const primary = usData?.equity ? usData : cryptoData || {};
+        const equity = Number(primary.equity || 0);
+        const cashRaw = Number(primary.cash || primary.cash_balance || 0);
+        const buyingPower = Number(primary.buying_power || 0);
+        const marginUsed = cashRaw < 0 ? Math.abs(cashRaw) : 0;
+        const grossAssets = equity + marginUsed;
+        const leverageRatio = equity > 0 ? (grossAssets / equity).toFixed(2) : "0";
+        return { equity, marginUsed, grossAssets, buyingPower, leverageRatio };
+    }, [usData, cryptoData]);
 
     return (
         <Box>
-            <Heading mb={6}>Global Portfolio</Heading>
+            <Heading mb={6}>Portfolio Breakdown</Heading>
 
-            {/* Summary Cards */}
-            <SimpleGrid columns={{ base: 1, md: 3 }} gap={5} mb={8}>
-                <Box bg="gray.800" p={5} borderRadius="xl" shadow="dark-lg" border="1px solid" borderColor="gray.700">
-                    <Stat.Root>
-                        <Stat.Label color="gray.400">Total Equity</Stat.Label>
-                        <Stat.ValueText fontSize="2xl">${totalEquity.toFixed(2)}</Stat.ValueText>
-                        <Stat.HelpText>Combined US & Crypto</Stat.HelpText>
-                    </Stat.Root>
+            {/* METRICS */}
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={8}>
+                <Box p={6} bg="gray.900" borderRadius="xl" border="1px solid" borderColor="green.500">
+                    <Text color="gray.400" fontSize="sm" fontWeight="bold">NET EQUITY</Text>
+                    <Text fontSize="3xl" fontWeight="bold" color="white">${stats.equity.toLocaleString()}</Text>
+                    <Text fontSize="sm" color="gray.500">Liquidation Value</Text>
                 </Box>
-                <Box bg="gray.800" p={5} borderRadius="xl" shadow="dark-lg" border="1px solid" borderColor="gray.700">
-                    <Stat.Root>
-                        <Stat.Label color="gray.400">Total P/L</Stat.Label>
-                        <Stat.ValueText fontSize="2xl" color={totalPL >= 0 ? "green.400" : "red.400"}>
-                            {totalPL >= 0 ? "+" : ""}${totalPL.toFixed(2)}
-                        </Stat.ValueText>
-                        <Stat.HelpText>
-                            Unrealized
-                        </Stat.HelpText>
-                    </Stat.Root>
+                <Box p={6} bg="gray.800" borderRadius="xl" borderTop="4px solid" borderColor="blue.500">
+                    <Text color="gray.400" fontSize="sm" fontWeight="bold">GROSS ASSETS</Text>
+                    <Text fontSize="3xl" fontWeight="bold">${stats.grossAssets.toLocaleString()}</Text>
+                    <Text fontSize="sm" color="gray.500">Total Holdings</Text>
                 </Box>
-                <Box bg="gray.800" p={5} borderRadius="xl" shadow="dark-lg" border="1px solid" borderColor="gray.700">
-                    <Stat.Root>
-                        <Stat.Label color="gray.400">Active Positions</Stat.Label>
-                        <Stat.ValueText fontSize="2xl">{positions.length}</Stat.ValueText>
-                        <Stat.HelpText>Assets Held</Stat.HelpText>
-                    </Stat.Root>
+                <Box p={6} bg="gray.800" borderRadius="xl" borderTop="4px solid" borderColor={stats.marginUsed > 0 ? "orange.500" : "gray.600"}>
+                    <Text color="gray.400" fontSize="sm" fontWeight="bold">MARGIN DEBT</Text>
+                    <Text fontSize="3xl" fontWeight="bold" color={stats.marginUsed > 0 ? "orange.300" : "gray.500"}>
+                        ${stats.marginUsed.toLocaleString()}
+                    </Text>
+                    <Text fontSize="sm" color="gray.500">Leverage: {stats.leverageRatio}x</Text>
                 </Box>
             </SimpleGrid>
 
-            {/* Holdings Table */}
-            <Box bg="gray.800" p={6} borderRadius="xl" shadow="dark-lg" border="1px solid" borderColor="gray.700" overflowX="auto">
+            {/* BUYING POWER */}
+            <Box mb={8} p={5} bg="gray.800" borderRadius="xl" border="1px solid" borderColor="gray.700">
+                <HStack justify="space-between" mb={2}>
+                    <Text color="gray.400">Buying Power Available</Text>
+                    <Text fontWeight="bold" color="blue.300">${stats.buyingPower.toLocaleString()}</Text>
+                </HStack>
+                <Progress value={stats.equity > 0 ? (stats.buyingPower / (stats.equity * 4)) * 100 : 0} size="sm" colorScheme="blue" mt={2} borderRadius="full" />
+            </Box>
+
+            {/* POSITIONS TABLE */}
+            <Box overflowX="auto" bg="gray.900" p={6} borderRadius="xl" border="1px solid" borderColor="gray.700">
                 <Heading size="md" mb={4}>Holdings</Heading>
-                {loading ? (
-                    <Text>Loading Portfolio...</Text>
-                ) : positions.length === 0 ? (
-                    <Text color="gray.500">No active positions.</Text>
-                ) : (
-                    <Table.Root variant="outline" size="sm">
-                        <Table.Header>
-                            <Table.Row>
-                                <Table.ColumnHeader color="gray.400">Asset</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400">Type</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">Qty</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">Avg Price</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">Current</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">Value</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">P/L ($)</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">P/L (%)</Table.ColumnHeader>
-                                <Table.ColumnHeader color="gray.400" textAlign="right">Action</Table.ColumnHeader>
-                            </Table.Row>
-                        </Table.Header>
-                        <Table.Body>
-                            {positions.map((p, i) => (
-                                <Table.Row key={i} _hover={{ bg: "gray.700" }}>
-                                    <Table.Cell fontWeight="bold">{p.symbol}</Table.Cell>
-                                    <Table.Cell>
-                                        <Badge colorPalette={p.type === 'US' ? 'blue' : 'orange'}>{p.type}</Badge>
-                                    </Table.Cell>
-                                    <Table.Cell textAlign="right">{p.qty}</Table.Cell>
-                                    <Table.Cell textAlign="right">${p.avg_entry_price.toFixed(2)}</Table.Cell>
-                                    <Table.Cell textAlign="right">${p.current_price.toFixed(2)}</Table.Cell>
-                                    <Table.Cell textAlign="right" fontWeight="bold">${p.market_value.toFixed(2)}</Table.Cell>
-                                    <Table.Cell textAlign="right" color={p.unrealized_pl >= 0 ? "green.400" : "red.400"}>
-                                        {p.unrealized_pl >= 0 ? "+" : ""}{p.unrealized_pl.toFixed(2)}
-                                    </Table.Cell>
-                                    <Table.Cell textAlign="right" color={p.unrealized_plpc >= 0 ? "green.400" : "red.400"}>
-                                        {p.unrealized_plpc >= 0 ? "+" : ""}{(p.unrealized_plpc * 100).toFixed(2)}%
-                                    </Table.Cell>
-                                    <Table.Cell textAlign="right">
-                                        <TradeModal symbol={p.symbol} />
-                                    </Table.Cell>
-                                </Table.Row>
-                            ))}
-                        </Table.Body>
-                    </Table.Root>
-                )}
+                <Table variant="simple">
+                    <Thead>
+                        <Tr>
+                            <Th color="gray.400">Symbol</Th>
+                            <Th color="gray.400" isNumeric>Qty</Th>
+                            <Th color="gray.400" isNumeric>Avg Entry</Th>
+                            <Th color="gray.400" isNumeric>Current</Th>
+                            <Th color="gray.400" isNumeric>Market Value</Th>
+                            <Th color="gray.400" isNumeric>P/L</Th>
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {positions.map((p: any, i) => {
+                            const pl = Number(p.unrealized_pl || 0);
+                            return (
+                                <Tr key={i} _hover={{ bg: "gray.800" }}>
+                                    <Td fontWeight="bold">{p.symbol}</Td>
+                                    <Td isNumeric>{p.qty}</Td>
+                                    <Td isNumeric>${Number(p.avg_entry_price).toFixed(2)}</Td>
+                                    <Td isNumeric>${Number(p.current_price).toFixed(2)}</Td>
+                                    <Td isNumeric fontWeight="semibold">${Number(p.market_value).toLocaleString()}</Td>
+                                    <Td isNumeric color={pl >= 0 ? "green.400" : "red.400"}>
+                                        {pl > 0 ? "+" : ""}{pl.toFixed(2)}
+                                    </Td>
+                                </Tr>
+                            );
+                        })}
+                    </Tbody>
+                </Table>
+                {positions.length === 0 && <Box textAlign="center" py={10} color="gray.500">No active positions.</Box>}
             </Box>
         </Box>
-    )
+    );
 }

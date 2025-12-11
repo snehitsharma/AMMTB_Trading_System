@@ -1,5 +1,11 @@
-import requests
-import pandas as pd
+try:
+    import requests
+    import pandas as pd
+except ImportError:
+    print("⚠️  Orchestrator: Missing dependencies (requests/pandas). Running in Zombie Mode.")
+    requests = None
+    pd = None
+
 import random
 from datetime import datetime
 

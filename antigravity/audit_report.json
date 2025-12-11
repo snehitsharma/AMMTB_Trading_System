@@ -1,0 +1,71 @@
+{
+  "generated_at": "2025-12-07T17:53:21.565697",
+  "services": [
+    {
+      "name": "US Agent",
+      "port": 8001,
+      "status": "ALIVE",
+      "last_poll_ts": "2025-12-07T17:53:23.600173",
+      "auto_execute": false,
+      "paper_mode": true,
+      "placeholders_found": [
+        "us_backend\\main.py:75:# Placeholder for real strategy logic",
+        "crypto_backend\\main.py:75:# Placeholder"
+      ],
+      "last_errors": []
+    },
+    {
+      "name": "Crypto Agent",
+      "port": 8002,
+      "status": "ALIVE",
+      "last_poll_ts": "2025-12-07T17:53:27.650017",
+      "auto_execute": false,
+      "paper_mode": true,
+      "placeholders_found": [],
+      "last_errors": []
+    },
+    {
+      "name": "India Agent",
+      "port": 8003,
+      "status": "DEAD",
+      "last_poll_ts": null,
+      "auto_execute": false,
+      "paper_mode": true,
+      "placeholders_found": [],
+      "last_errors": []
+    },
+    {
+      "name": "Orchestrator",
+      "port": 8005,
+      "status": "ALIVE",
+      "last_poll_ts": "2025-12-07T17:53:35.758180",
+      "auto_execute": false,
+      "paper_mode": true,
+      "placeholders_found": [],
+      "last_errors": []
+    },
+    {
+      "name": "HODL Agent",
+      "port": 8006,
+      "status": "DEAD",
+      "last_poll_ts": null,
+      "auto_execute": false,
+      "paper_mode": true,
+      "placeholders_found": [],
+      "last_errors": []
+    }
+  ],
+  "data_sources": [],
+  "signals": [],
+  "executions": [],
+  "mismatches": [],
+  "risk_controls": [],
+  "logs": {},
+  "tests": {
+    "unit_passed": 0,
+    "unit_failed": 0,
+    "integration_passed": 0,
+    "integration_failed": 0
+  },
+  "action_items": []
+}

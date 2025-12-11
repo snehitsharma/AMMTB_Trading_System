@@ -1,155 +1,66 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
-import {
-    Box, Heading, VStack, Input, Button, HStack, Text, Separator
-} from '@chakra-ui/react'
+import { Box, Heading, VStack, HStack, Text, Switch, Divider, Button, Input, FormControl, FormLabel, Select, useColorMode } from "@chakra-ui/react";
+import { useState } from "react";
 
 export default function SettingsPage() {
-    const [settings, setSettings] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
-
-    useEffect(() => {
-        fetchSettings()
-    }, [])
-
-    const fetchSettings = async () => {
-        try {
-            const res = await axios.get('/api/ai/settings')
-            setSettings(res.data)
-            setLoading(false)
-        } catch (e) {
-            console.error("Failed to fetch settings", e)
-            setLoading(false)
-        }
-    }
-
-    const handleSave = async () => {
-        try {
-            await axios.post('/api/ai/settings', settings)
-            alert("Settings Saved Successfully!")
-        } catch (e) {
-            alert("Failed to save settings.")
-        }
-    }
-
-    const handleChange = (key: string, value: any) => {
-        setSettings({ ...settings, [key]: value })
-    }
-
-    if (loading || !settings) return <Box p={8}>Loading Settings...</Box>
+    const { colorMode, toggleColorMode } = useColorMode();
+    const [riskLimit, setRiskLimit] = useState("10");
+    const [apiKey, setApiKey] = useState("****************");
 
     return (
-        <Box maxW="container.md">
-            <Heading mb={6}>AI Configuration</Heading>
+        <Box>
+            <Heading mb={6}>System Configuration</Heading>
 
-            <VStack align="stretch" gap={6} bg="gray.800" p={6} borderRadius="xl" border="1px solid" borderColor="gray.700">
+            <VStack spacing={8} align="stretch">
 
-                <Box>
-                    <Heading size="sm" mb={4} color="blue.400">Risk Management</Heading>
-                    <VStack gap={4} align="start">
-                        <Box w="full">
-                            <Text mb={1} fontWeight="medium">Max Positions</Text>
-                            <Input
-                                type="number"
-                                value={settings.max_positions}
-                                onChange={(e) => handleChange('max_positions', parseInt(e.target.value))}
-                                bg="gray.900"
-                            />
-                            <Text fontSize="xs" color="gray.500">Maximum number of simultaneous assets to hold.</Text>
-                        </Box>
-                        <Box w="full">
-                            <Text mb={1} fontWeight="medium">Risk Per Trade (%)</Text>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                value={settings.risk_per_trade}
-                                onChange={(e) => handleChange('risk_per_trade', parseFloat(e.target.value))}
-                                bg="gray.900"
-                            />
-                        </Box>
-                    </VStack>
-                </Box>
-
-                <Separator borderColor="gray.600" />
-
-                <Box>
-                    <Heading size="sm" mb={4} color="purple.400">Strategy Parameters</Heading>
-                    <HStack gap={4}>
-                        <Box w="full">
-                            <Text mb={1} fontWeight="medium">RSI Buy Threshold</Text>
-                            <Input
-                                type="number"
-                                value={settings.rsi_buy_threshold}
-                                onChange={(e) => handleChange('rsi_buy_threshold', parseInt(e.target.value))}
-                                bg="gray.900"
-                            />
-                        </Box>
-                        <Box w="full">
-                            <Text mb={1} fontWeight="medium">RSI Sell Threshold</Text>
-                            <Input
-                                type="number"
-                                value={settings.rsi_sell_threshold}
-                                onChange={(e) => handleChange('rsi_sell_threshold', parseInt(e.target.value))}
-                                bg="gray.900"
-                            />
-                        </Box>
-                    </HStack>
-                    <HStack gap={4} mt={4}>
-                        <Box w="full">
-                            <Text mb={1} fontWeight="medium">Stop Loss (ATR Multiplier)</Text>
-                            <Input
-                                type="number"
-                                step="0.1"
-                                value={settings.stop_loss_atr_multiplier}
-                                onChange={(e) => handleChange('stop_loss_atr_multiplier', parseFloat(e.target.value))}
-                                bg="gray.900"
-                            />
-                        </Box>
-                        <Box w="full">
-                            <Text mb={1} fontWeight="medium">Take Profit (ATR Multiplier)</Text>
-                            <Input
-                                type="number"
-                                step="0.1"
-                                value={settings.take_profit_atr_multiplier}
-                                onChange={(e) => handleChange('take_profit_atr_multiplier', parseFloat(e.target.value))}
-                                bg="gray.900"
-                            />
-                        </Box>
-                    </HStack>
-                </Box>
-
-                <Separator borderColor="gray.600" />
-
-                <Box>
-                    <Heading size="sm" mb={4} color="green.400">Intelligence Modules</Heading>
-                    <VStack align="start" gap={4}>
-                        <HStack justify="space-between" w="full">
-                            <Text>Enable Sentiment Analysis (News/Insider)</Text>
-                            <Button
-                                size="xs"
-                                colorPalette={settings.enable_sentiment ? "green" : "red"}
-                                onClick={() => handleChange('enable_sentiment', !settings.enable_sentiment)}
-                            >
-                                {settings.enable_sentiment ? "ENABLED" : "DISABLED"}
-                            </Button>
+                {/* GENERAL SETTINGS */}
+                <Box p={6} bg="gray.900" borderRadius="xl" border="1px solid" borderColor="gray.700">
+                    <Heading size="md" mb={4}>General</Heading>
+                    <VStack spacing={4} align="stretch">
+                        <HStack justify="space-between">
+                            <Text>Dark Mode</Text>
+                            <Switch isChecked={colorMode === "dark"} onChange={toggleColorMode} />
                         </HStack>
-                        <HStack justify="space-between" w="full">
-                            <Text>Enable EVT Risk Engine</Text>
-                            <Button
-                                size="xs"
-                                colorPalette={settings.enable_risk_engine ? "green" : "red"}
-                                onClick={() => handleChange('enable_risk_engine', !settings.enable_risk_engine)}
-                            >
-                                {settings.enable_risk_engine ? "ENABLED" : "DISABLED"}
-                            </Button>
+                        <Divider borderColor="gray.700" />
+                        <HStack justify="space-between">
+                            <Text>Notifications</Text>
+                            <Switch defaultChecked />
                         </HStack>
                     </VStack>
                 </Box>
 
-                <Button colorPalette="blue" size="lg" onClick={handleSave} mt={4}>
-                    Save Configuration
-                </Button>
+                {/* RISK PARAMETERS */}
+                <Box p={6} bg="gray.900" borderRadius="xl" border="1px solid" borderColor="gray.700">
+                    <Heading size="md" mb={4}>Risk Management</Heading>
+                    <VStack spacing={4} align="stretch">
+                        <FormControl>
+                            <FormLabel>Max Position Size (% of Equity)</FormLabel>
+                            <Select value={riskLimit} onChange={(e) => setRiskLimit(e.target.value)} bg="gray.800">
+                                <option value="5">Conservative (5%)</option>
+                                <option value="10">Balanced (10%)</option>
+                                <option value="20">Aggressive (20%)</option>
+                            </Select>
+                        </FormControl>
+                        <FormControl>
+                            <FormLabel>Daily Loss Limit (%)</FormLabel>
+                            <Input type="number" defaultValue={3} bg="gray.800" />
+                        </FormControl>
+                        <Button colorScheme="blue" w="full">Save Risk Settings</Button>
+                    </VStack>
+                </Box>
+
+                {/* API KEYS (Masked) */}
+                <Box p={6} bg="gray.900" borderRadius="xl" border="1px solid" borderColor="gray.700">
+                    <Heading size="md" mb={4}>API Credentials</Heading>
+                    <VStack spacing={4} align="stretch">
+                        <FormControl>
+                            <FormLabel>Alpaca API Key</FormLabel>
+                            <Input value={apiKey} isReadOnly bg="gray.800" />
+                        </FormControl>
+                        <Button colorScheme="red" variant="outline" w="full">Reset Keys</Button>
+                    </VStack>
+                </Box>
+
             </VStack>
         </Box>
-    )
+    );
 }

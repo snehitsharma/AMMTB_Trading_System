@@ -1,136 +1,102 @@
-import React, { useState } from 'react';
-import {
-    Box, Button, Input, Select, SimpleGrid, Text, Table, Thead, Tbody, Tr, Th, Td,
-    Stat, StatLabel, StatNumber, StatHelpText, StatArrow, Badge, Spinner
-} from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Button, VStack, HStack, Text, Icon, Flex } from "@chakra-ui/react";
+import { FiTrendingUp, FiTrendingDown, FiActivity } from "react-icons/fi";
+import { useState } from "react";
+import axios from "axios";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import axios from 'axios';
 
-const BacktestPage = () => {
+export default function BacktestPage() {
     const [symbol, setSymbol] = useState("AAPL");
     const [strategy, setStrategy] = useState("TECHNICAL");
-    const [days, setDays] = useState(180);
+    const [result, setResult] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const [results, setResults] = useState<any>(null);
 
     const runBacktest = async () => {
         setLoading(true);
-        setResults(null);
         try {
-            const res = await axios.post("/api/ai/api/v1/backtest", { symbol, strategy, days });
-            setResults(res.data);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
+            const res = await axios.post("/api/ai/api/v1/backtest", {
+                symbol, strategy, days: 90
+            });
+            setResult(res.data);
+        } catch (e) { console.error(e); }
+        setLoading(false);
     };
 
     return (
-        <Box p={5}>
-            <Text fontSize="2xl" mb={5} fontWeight="bold">⏳ Time Machine (Backtester)</Text>
+        <Box>
+            <Heading mb={6}>Strategy Time Machine</Heading>
 
-            {/* Controls */}
-            <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4} mb={8}>
-                <Input placeholder="Symbol" value={symbol} onChange={(e) => setSymbol(e.target.value)} />
-                <Select value={strategy} onChange={(e) => setStrategy(e.target.value)}>
-                    <option value="TECHNICAL">Technical Engine</option>
-                    <option value="INSIDER">Insider Tracking</option>
-                </Select>
-                <Select value={days} onChange={(e) => setDays(parseInt(e.target.value))}>
-                    <option value={30}>Last 30 Days</option>
-                    <option value={90}>Last 90 Days</option>
-                    <option value={180}>Last 6 Months</option>
-                    <option value={365}>Last 1 Year</option>
-                </Select>
-                <Button colorScheme="blue" onClick={runBacktest} isLoading={loading}>Run Simulation</Button>
-            </SimpleGrid>
+            {/* CONTROLS */}
+            <HStack mb={8} spacing={4}>
+                <Box>
+                    <select
+                        value={symbol}
+                        onChange={(e) => setSymbol(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '4px', backgroundColor: '#2D3748', color: 'white', border: '1px solid #4A5568' }}
+                    >
+                        <option value="AAPL">AAPL</option>
+                        <option value="NVDA">NVDA</option>
+                        <option value="BTC/USD">BTC/USD</option>
+                    </select>
+                </Box>
+                <Box>
+                    <select
+                        value={strategy}
+                        onChange={(e) => setStrategy(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '4px', backgroundColor: '#2D3748', color: 'white', border: '1px solid #4A5568' }}
+                    >
+                        <option value="TECHNICAL">Technical (RSI/MACD)</option>
+                        <option value="INSIDER">Insider Momentum</option>
+                    </select>
+                </Box>
+                <Button colorScheme="cyan" isLoading={loading} onClick={runBacktest} leftIcon={<Icon as={FiActivity} />}>
+                    Run Simulation
+                </Button>
+            </HStack>
 
-            {/* Results */}
-            {results && !results.error && (
-                <>
-                    {/* Metrics */}
-                    <SimpleGrid columns={{ base: 2, md: 4 }} spacing={5} mb={8}>
-                        <Stat p={4} shadow="md" borderRadius="md" bg="gray.800">
-                            <StatLabel>Total Return</StatLabel>
-                            <StatNumber color={results.metrics.total_return >= 0 ? "green.400" : "red.400"}>
-                                {results.metrics.total_return}%
-                            </StatNumber>
-                            <StatHelpText>
-                                <StatArrow type={results.metrics.total_return >= 0 ? "increase" : "decrease"} />
-                                Initial $100k
-                            </StatHelpText>
-                        </Stat>
-                        <Stat p={4} shadow="md" borderRadius="md" bg="gray.800">
-                            <StatLabel>Win Rate</StatLabel>
-                            <StatNumber>{results.metrics.win_rate}%</StatNumber>
-                            <StatHelpText>{results.metrics.trades_count} Trades</StatHelpText>
-                        </Stat>
-                        <Stat p={4} shadow="md" borderRadius="md" bg="gray.800">
-                            <StatLabel>Max Drawdown</StatLabel>
-                            <StatNumber color="red.400">{results.metrics.max_drawdown}%</StatNumber>
-                        </Stat>
-                        <Stat p={4} shadow="md" borderRadius="md" bg="gray.800">
-                            <StatLabel>Strategy</StatLabel>
-                            <StatNumber fontSize="lg">{results.strategy}</StatNumber>
-                            <StatHelpText>{results.symbol}</StatHelpText>
-                        </Stat>
+            {/* RESULTS */}
+            {result && (
+                <VStack spacing={8} align="stretch">
+                    <SimpleGrid columns={3} spacing={6}>
+                        <Box p={5} bg="gray.800" borderRadius="lg">
+                            <VStack align="start" spacing={1}>
+                                <Text color="gray.400">Total Return</Text>
+                                <Text fontSize="2xl" fontWeight="bold" color={result.metrics.return_pct >= 0 ? "green.400" : "red.400"}>
+                                    {result.metrics.return_pct}%
+                                </Text>
+                                <Flex align="center" gap={2} color="gray.500" fontSize="sm">
+                                    <Icon as={result.metrics.return_pct >= 0 ? FiTrendingUp : FiTrendingDown} /> 90 Days
+                                </Flex>
+                            </VStack>
+                        </Box>
+                        <Box p={5} bg="gray.800" borderRadius="lg">
+                            <VStack align="start" spacing={1}>
+                                <Text color="gray.400">Win Rate</Text>
+                                <Text fontSize="2xl" fontWeight="bold">{result.metrics.win_rate}%</Text>
+                                <Text color="gray.500" fontSize="sm">{result.metrics.total_trades} Trades</Text>
+                            </VStack>
+                        </Box>
+                        <Box p={5} bg="gray.800" borderRadius="lg">
+                            <VStack align="start" spacing={1}>
+                                <Text color="gray.400">Max Drawdown</Text>
+                                <Text fontSize="2xl" fontWeight="bold" color="red.300">{result.metrics.max_drawdown}%</Text>
+                            </VStack>
+                        </Box>
                     </SimpleGrid>
 
-                    {/* Chart */}
-                    <Box h="400px" bg="gray.900" p={4} borderRadius="md" mb={8}>
-                        <Text mb={2}>Equity Curve</Text>
+                    {/* CHART */}
+                    <Box h="400px" bg="gray.800" p={4} borderRadius="lg">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={results.equity_curve}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                                <XAxis dataKey="date" stroke="#888" tickFormatter={(str) => new Date(str).toLocaleDateString()} />
+                            <LineChart data={result.equity_curve}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                                <XAxis dataKey="date" stroke="#888" />
                                 <YAxis stroke="#888" domain={['auto', 'auto']} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: 'none' }} />
-                                <Line type="monotone" dataKey="equity" stroke="#48BB78" strokeWidth={2} dot={false} />
+                                <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none' }} />
+                                <Line type="monotone" dataKey="equity" stroke="#00bcd4" strokeWidth={2} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     </Box>
-
-                    {/* Trade Log */}
-                    <Box overflowX="auto">
-                        <Text fontSize="xl" mb={4}>Trade Log</Text>
-                        <Table variant="simple" size="sm">
-                            <Thead>
-                                <Tr>
-                                    <Th>Date</Th>
-                                    <Th>Type</Th>
-                                    <Th isNumeric>Price</Th>
-                                    <Th isNumeric>Qty</Th>
-                                    <Th isNumeric>Value</Th>
-                                    <Th isNumeric>PnL</Th>
-                                </Tr>
-                            </Thead>
-                            <Tbody>
-                                {results.trades.map((t: any, i: number) => (
-                                    <Tr key={i}>
-                                        <Td>{new Date(t.date).toLocaleDateString()}</Td>
-                                        <Td>
-                                            <Badge colorScheme={t.type === "BUY" ? "green" : "red"}>{t.type}</Badge>
-                                        </Td>
-                                        <Td isNumeric>${t.price.toFixed(2)}</Td>
-                                        <Td isNumeric>{t.qty}</Td>
-                                        <Td isNumeric>${t.value.toFixed(2)}</Td>
-                                        <Td isNumeric color={t.pnl > 0 ? "green.400" : t.pnl < 0 ? "red.400" : "white"}>
-                                            {t.pnl ? `$${t.pnl.toFixed(2)}` : "-"}
-                                        </Td>
-                                    </Tr>
-                                ))}
-                            </Tbody>
-                        </Table>
-                    </Box>
-                </>
-            )}
-
-            {results && results.error && (
-                <Text color="red.500">Error: {results.error}</Text>
+                </VStack>
             )}
         </Box>
     );
-};
-
-export default BacktestPage;
+}

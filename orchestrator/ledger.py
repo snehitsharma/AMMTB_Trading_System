@@ -74,21 +74,31 @@ class SQLiteLedger:
         conn.commit()
         conn.close()
 
-    def get_logs(self) -> List[LogEntry]:
+    def get_logs(self, limit: int = 50, offset: int = 0) -> List[LogEntry]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM logs ORDER BY timestamp DESC')
+        cursor.execute('SELECT * FROM logs ORDER BY timestamp DESC LIMIT ? OFFSET ?', (limit, offset))
         rows = cursor.fetchall()
         conn.close()
         
         logs = []
+        logs = []
         for row in rows:
+            try:
+                parsed = json.loads(row['details'])
+            except:
+                parsed = {"raw_content": str(row['details'])}
+            
+            # Ensure details is always a dict for Pydantic validation
+            if not isinstance(parsed, dict):
+                parsed = {"message": str(parsed)}
+
             logs.append(LogEntry(
                 timestamp=row['timestamp'],
                 source=row['source'],
                 event=row['event'],
-                details=json.loads(row['details'])
+                details=parsed
             ))
         return logs
 

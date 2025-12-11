@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Box, SimpleGrid, Text, Stat, StatLabel, StatNumber, StatHelpText,
-    Progress, Badge, Card, CardBody, Heading, Flex, Icon
+    Box, SimpleGrid, Text, Stat,
+    Progress, Badge, Card, Heading, Flex, Icon
 } from '@chakra-ui/react';
 import { FiShield, FiAlertTriangle, FiCheckCircle, FiActivity } from 'react-icons/fi';
 import axios from 'axios';
@@ -11,7 +11,7 @@ const RiskPage = () => {
 
     const fetchRisk = async () => {
         try {
-            const res = await axios.get("/api/ai/api/v1/risk");
+            const res = await axios.get("/api/ai/risk");
             setMetrics(res.data);
         } catch (e) {
             console.error(e);
@@ -46,13 +46,13 @@ const RiskPage = () => {
 
             <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={8}>
                 {/* Drawdown Gauge */}
-                <Card bg="gray.800" borderTop="4px" borderColor={ddPct > 2.5 ? "red.500" : "green.500"}>
-                    <CardBody>
-                        <Stat>
-                            <StatLabel>Daily Drawdown</StatLabel>
-                            <StatNumber>{ddPct.toFixed(2)}%</StatNumber>
-                            <StatHelpText>Limit: 3.00%</StatHelpText>
-                        </Stat>
+                <Card.Root bg="gray.800" borderTop="4px" borderColor={ddPct > 2.5 ? "red.500" : "green.500"}>
+                    <Card.Body>
+                        <Stat.Root>
+                            <Stat.Label>Daily Drawdown</Stat.Label>
+                            <Stat.ValueText>{ddPct.toFixed(2)}%</Stat.ValueText>
+                            <Stat.HelpText>Limit: 3.00%</Stat.HelpText>
+                        </Stat.Root>
                         <Progress
                             value={ddPct}
                             max={3}
@@ -61,17 +61,17 @@ const RiskPage = () => {
                             mt={3}
                             borderRadius="full"
                         />
-                    </CardBody>
-                </Card>
+                    </Card.Body>
+                </Card.Root>
 
                 {/* Exposure Gauge */}
-                <Card bg="gray.800" borderTop="4px" borderColor={expPct > 20 ? "orange.500" : "blue.500"}>
-                    <CardBody>
-                        <Stat>
-                            <StatLabel>Total Exposure</StatLabel>
-                            <StatNumber>{expPct.toFixed(2)}%</StatNumber>
-                            <StatHelpText>Limit: 25.00%</StatHelpText>
-                        </Stat>
+                <Card.Root bg="gray.800" borderTop="4px" borderColor={expPct > 20 ? "orange.500" : "blue.500"}>
+                    <Card.Body>
+                        <Stat.Root>
+                            <Stat.Label>Total Exposure</Stat.Label>
+                            <Stat.ValueText>{expPct.toFixed(2)}%</Stat.ValueText>
+                            <Stat.HelpText>Limit: 25.00%</Stat.HelpText>
+                        </Stat.Root>
                         <Progress
                             value={expPct}
                             max={25}
@@ -80,17 +80,17 @@ const RiskPage = () => {
                             mt={3}
                             borderRadius="full"
                         />
-                    </CardBody>
-                </Card>
+                    </Card.Body>
+                </Card.Root>
 
                 {/* Cash Buffer */}
-                <Card bg="gray.800" borderTop="4px" borderColor="purple.500">
-                    <CardBody>
-                        <Stat>
-                            <StatLabel>Cash Buffer</StatLabel>
-                            <StatNumber>{cashPct.toFixed(2)}%</StatNumber>
-                            <StatHelpText>Target: > 75%</StatHelpText>
-                        </Stat>
+                <Card.Root bg="gray.800" borderTop="4px" borderColor="purple.500">
+                    <Card.Body>
+                        <Stat.Root>
+                            <Stat.Label>Cash Buffer</Stat.Label>
+                            <Stat.ValueText>{cashPct.toFixed(2)}%</Stat.ValueText>
+                            <Stat.HelpText>Target: &gt; 75%</Stat.HelpText>
+                        </Stat.Root>
                         <Progress
                             value={cashPct}
                             max={100}
@@ -99,8 +99,8 @@ const RiskPage = () => {
                             mt={3}
                             borderRadius="full"
                         />
-                    </CardBody>
-                </Card>
+                    </Card.Body>
+                </Card.Root>
             </SimpleGrid>
 
             {/* Active Rules */}
